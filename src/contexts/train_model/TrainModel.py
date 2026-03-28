@@ -7,15 +7,16 @@ from dotenv import load_dotenv
 
 
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.metrics import mean_squared_error, r2_score
 
 class TrainModel:
 
     def entrenarModelo():
 
-        #se usaron las credeciales para ingresar de manera ocacional (Transaction pooler)
-        load_dotenv("/app/.env")
+        #se usaron las credenciales para ingresar de manera ocasional (Transaction pooler)
+        load_dotenv(".env")
         USER = os.getenv("SUPABASE_USER")
         PASSWORD = os.getenv("SUPABASE_PASSWORD")
         HOST = os.getenv("SUPABASE_HOST")
@@ -40,7 +41,7 @@ class TrainModel:
             ) as connection:
                 with connection.cursor() as cursor:
                     # Consulta SQL
-                    cursor.execute('SELECT x, y FROM "Dataset";')
+                    cursor.execute('SELECT dominio_email, country, city, genre FROM train_model;')
                     rows = cursor.fetchall()  # devuelve una lista de tuplas [(x1,y1),(x2,y2),...]
                     
                     print(f"Filas recuperadas: {len(rows)}")
@@ -54,22 +55,28 @@ class TrainModel:
             return
         else:
             print(rows[:2])
-            
 
-        # Convertir la lista de tuplas a un array de NumPy
-        data_array = np.array(rows)  # shape (num_filas, 2)
 
-        # Separar columnas
-        x = data_array[:, 0].reshape(-1, 1)  # 100 x 1
-        y = data_array[:, 1].reshape(-1, 1)  # 100 x 1
+        data_array= np.array(rows)
 
-        #dividir en entranamiento y prueba
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
-        
-        #entrenar el modelo
-        
-        model = LinearRegression()
-        model.fit(x_train, y_train)
+        x=data_array[:, :-1]
+        y= data_array[:, -1]    
+
+        encoder_x= OneHotEncoder()
+        x= encoder_x.fit_transform(x)
+
+        le= LabelEncoder()
+        y= le.fit_transform(y)
+
+
+        x_train,  x_test,y_train, y_test = train_test_split(x,y, test_size= 0.2)
+
+        model = RandomForestClassifier()
+        model.fit(x_train,  y_train)
+
+        joblib.dump(encoder_x, str(os.getenv("ENCODER_ENTRENADO")))
+        joblib.dump(le, str(os.getenv("LABEL_ENCODER_ENTRENADO")))
         joblib.dump(model, str(os.getenv("MODELO_ENTRENADO")))
         print("modelo entrenado")
-        
+            
+
